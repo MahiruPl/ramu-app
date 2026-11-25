@@ -289,41 +289,43 @@
     document.getElementById("addCouponBtn").addEventListener("click", () => addCouponRow());
 
     // 送信処理（GASへPOST）
-    document.getElementById("submitBtn").addEventListener("click", async () => {
+    document.getElementById("submitBtn").addEventListener("click", () => {
       const btn = document.getElementById("submitBtn");
       btn.disabled = true;
       btn.textContent = "登録中...";
-
+    
       const dateInputs = couponContainer.querySelectorAll('input[type="date"]');
       const expireDates = Array.from(dateInputs).map(inp => inp.value).filter(Boolean);
-
+    
       const tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
-      const user = tgUser || {
-        id: params.get("uid"),
-        first_name: params.get("uname") || "メンバー"
-      };
-
-      try {
-        await fetch(GAS_API_URL, {
-          method: "POST",
-          mode: "no-cors",
-          headers: { "Content-Type": "text/plain" },
-          body: JSON.stringify({
-            miniapp_action: "save_setup",
-            user: user,
-            count: selectedCount,
-            expireDates: expireDates
-          })
-        });
-
-        setTimeout(() => {
-          tg.close();
-        }, 400);
-      } catch (err) {
-        alert("通信エラーが発生しました。もう一度お試しください。");
+      const uid = (tgUser && tgUser.id) ? tgUser.id : params.get("uid");
+      const uname = (tgUser && tgUser.first_name)
+        ? [tgUser.first_name, tgUser.last_name].filter(Boolean).join(" ")
+        : (params.get("uname") || "メンバー");
+    
+      if (!uid) {
+        alert("ユーザーIDが取得できませんでした。Telegramの /ramu_set から開き直してください。");
         btn.disabled = false;
         btn.textContent = "✅ この内容で登録する";
+        return;
       }
+    
+      const query = new URLSearchParams({
+        action: "save_setup",
+        uid: String(uid),
+        uname: uname,
+        count: String(selectedCount),
+        expireDates: expireDates.join(",")
+      });
+    
+      // GETリクエストでGASのdoGetへ確実に送信（CORS・リダイレクト回避）
+      fetch(`${GAS_API_URL}?${query.toString()}`, { mode: "no-cors" })
+        .catch(() => {})
+        .finally(() => {
+          setTimeout(() => {
+            tg.close();
+          }, 800);
+        });
     });
   </script>
 </body>
