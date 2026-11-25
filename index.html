@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ラムちゃん管理 初期設定</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root {
+      --bg-color: var(--tg-theme-bg-color, #ffffff);
+      --sec-bg: var(--tg-theme-secondary-bg-color, #f4f4f5);
+      --text-color: var(--tg-theme-text-color, #18181b);
+      --hint-color: var(--tg-theme-hint-color, #71717a);
+      --btn-color: var(--tg-theme-button-color, #2563eb);
+      --btn-text: var(--tg-theme-button-text-color, #ffffff);
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body {
+      margin: 0;
+      padding: 16px 16px 88px;
+      font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Noto Sans JP", sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+    }
+
+    h1 {
+      font-size: 18px;
+      margin: 0 0 6px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .sub {
+      font-size: 13px;
+      color: var(--hint-color);
+      margin: 0 0 18px;
+      line-height: 1.5;
+    }
+
+    .card {
+      background: var(--sec-bg);
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      margin: 0 0 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .badge {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--btn-color);
+    }
+
+    /* ドラムロールピッカー */
+    .drum-wrapper {
+      position: relative;
+      height: 150px;
+      overflow: hidden;
+      border-radius: 10px;
+      background: var(--bg-color);
+    }
+    .drum-highlight {
+      position: absolute;
+      top: 50px;
+      left: 12px;
+      right: 12px;
+      height: 50px;
+      border-top: 2px solid var(--btn-color);
+      border-bottom: 2px solid var(--btn-color);
+      pointer-events: none;
+      background: rgba(37, 99, 235, 0.06);
+      border-radius: 6px;
+    }
+    .drum-list {
+      height: 100%;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      padding: 50px 0;
+      scrollbar-width: none;
+    }
+    .drum-list::-webkit-scrollbar { display: none; }
+    .drum-item {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 600;
+      scroll-snap-align: center;
+      color: var(--hint-color);
+      transition: all 0.15s ease;
+    }
+    .drum-item.active {
+      color: var(--text-color);
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    /* クーポン有効期限カレンダー入力 */
+    .coupon-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .coupon-row input[type="date"] {
+      flex: 1;
+      height: 44px;
+      padding: 0 12px;
+      font-size: 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(128, 128, 128, 0.3);
+      background: var(--bg-color);
+      color: var(--text-color);
+    }
+    .del-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .add-btn {
+      width: 100%;
+      height: 42px;
+      border: 1.5px dashed var(--btn-color);
+      border-radius: 10px;
+      background: transparent;
+      color: var(--btn-color);
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .footer-bar {
+      position: fixed;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      padding: 12px 16px;
+      background: var(--bg-color);
+      border-top: 1px solid rgba(128, 128, 128, 0.2);
+    }
+    .submit-btn {
+      width: 100%;
+      height: 48px;
+      border: none;
+      border-radius: 12px;
+      background: var(--btn-color);
+      color: var(--btn-text);
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .submit-btn:disabled {
+      opacity: 0.6;
+    }
+  </style>
+</head>
+<body>
+  <h1>🐑 ラムちゃん参加・クーポン登録</h1>
+  <p class="sub">現在の累計参加回数と、お持ちのクーポンの有効期限を選んで登録してください（何度でもやり直し可能です）。</p>
+
+  <div class="card">
+    <div class="card-title">
+      <span>1. 現在の累計参加回数</span>
+      <span class="badge" id="nextCouponBadge">次のクーポンまであと5回</span>
+    </div>
+    <div class="drum-wrapper">
+      <div class="drum-highlight"></div>
+      <div class="drum-list" id="drumList"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <span>2. 手持ちクーポンの有効期限</span>
+      <span class="badge" id="couponCountBadge">0枚</span>
+    </div>
+    <p class="sub" style="margin-bottom: 12px;">クーポンをお持ちの場合は「＋ クーポンの有効期限を追加」からカレンダーで期限日を選択してください。</p>
+    <div id="couponContainer"></div>
+    <button type="button" class="add-btn" id="addCouponBtn">＋ クーポンの有効期限を追加</button>
+  </div>
+
+  <div class="footer-bar">
+    <button type="button" class="submit-btn" id="submitBtn">✅ この内容で登録する</button>
+  </div>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const GAS_API_URL = "https://script.google.com/macros/s/AKfycbyTxiHEq5XO_nppWQ97wumbz3TNrdut38FXw0cE1ELpg0OYjfYUZKkgwtVHiCJI0wppAw/exec";
+    const params = new URLSearchParams(window.location.search);
+    const initialCount = Math.max(0, Math.min(99, parseInt(params.get("c") || "0", 10) || 0));
+    const initialExpiresParam = params.get("e") || "";
+    const initialExpires = initialExpiresParam ? initialExpiresParam.split(",").filter(Boolean) : [];
+
+    // ドラムロール生成（0〜99回）
+    const drumList = document.getElementById("drumList");
+    const nextCouponBadge = document.getElementById("nextCouponBadge");
+    let selectedCount = initialCount;
+
+    for (let i = 0; i <= 99; i++) {
+      const div = document.createElement("div");
+      div.className = "drum-item" + (i === initialCount ? " active" : "");
+      div.textContent = `${i} 回`;
+      div.dataset.val = i;
+      div.addEventListener("click", () => {
+        drumList.scrollTo({ top: i * 50, behavior: "smooth" });
+      });
+      drumList.appendChild(div);
+    }
+
+    function updateActiveDrum(val) {
+      selectedCount = val;
+      const items = drumList.querySelectorAll(".drum-item");
+      items.forEach((el, idx) => {
+        el.classList.toggle("active", idx === val);
+      });
+      const remain = 5 - (val % 5);
+      nextCouponBadge.textContent = `次のクーポンまであと${remain}回`;
+    }
+
+    drumList.scrollTop = initialCount * 50;
+    updateActiveDrum(initialCount);
+
+    let scrollTimer = null;
+    drumList.addEventListener("scroll", () => {
+      const idx = Math.min(99, Math.max(0, Math.round(drumList.scrollTop / 50)));
+      updateActiveDrum(idx);
+      clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        if (tg.HapticFeedback) tg.HapticFeedback.selectionChanged();
+      }, 60);
+    });
+
+    // クーポン有効期限行の管理
+    const couponContainer = document.getElementById("couponContainer");
+    const couponCountBadge = document.getElementById("couponCountBadge");
+
+    function updateCouponBadge() {
+      const count = couponContainer.querySelectorAll(".coupon-row").length;
+      couponCountBadge.textContent = `${count}枚`;
+    }
+
+    function addCouponRow(defaultDate = "") {
+      const row = document.createElement("div");
+      row.className = "coupon-row";
+
+      const input = document.createElement("input");
+      input.type = "date";
+      if (defaultDate) {
+        input.value = defaultDate;
+      } else {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        input.value = d.toISOString().slice(0, 10);
+      }
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "del-btn";
+      delBtn.textContent = "✕";
+      delBtn.addEventListener("click", () => {
+        row.remove();
+        updateCouponBadge();
+      });
+
+      row.appendChild(input);
+      row.appendChild(delBtn);
+      couponContainer.appendChild(row);
+      updateCouponBadge();
+    }
+
+    initialExpires.forEach(d => addCouponRow(d));
+    document.getElementById("addCouponBtn").addEventListener("click", () => addCouponRow());
+
+    // 送信処理（GASへPOST）
+    document.getElementById("submitBtn").addEventListener("click", async () => {
+      const btn = document.getElementById("submitBtn");
+      btn.disabled = true;
+      btn.textContent = "登録中...";
+
+      const dateInputs = couponContainer.querySelectorAll('input[type="date"]');
+      const expireDates = Array.from(dateInputs).map(inp => inp.value).filter(Boolean);
+
+      const tgUser = (tg.initDataUnsafe && tg.initDataUnsafe.user) ? tg.initDataUnsafe.user : null;
+      const user = tgUser || {
+        id: params.get("uid"),
+        first_name: params.get("uname") || "メンバー"
+      };
+
+      try {
+        await fetch(GAS_API_URL, {
+          method: "POST",
+          mode: "no-cors",
+          headers: { "Content-Type": "text/plain" },
+          body: JSON.stringify({
+            miniapp_action: "save_setup",
+            user: user,
+            count: selectedCount,
+            expireDates: expireDates
+          })
+        });
+
+        setTimeout(() => {
+          tg.close();
+        }, 400);
+      } catch (err) {
+        alert("通信エラーが発生しました。もう一度お試しください。");
+        btn.disabled = false;
+        btn.textContent = "✅ この内容で登録する";
+      }
+    });
+  </script>
+</body>
+</html>
